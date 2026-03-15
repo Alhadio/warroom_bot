@@ -31,7 +31,7 @@ ALERT_SYM, ALERT_PRICE,
 
 SEP = “=” * 28
 
-# ─── DATA ─────────────────────────────────────────────────────────────────────
+# — DATA ———————————————————————
 
 def load_data():
 try:
@@ -50,7 +50,7 @@ if uid not in data:
 data[uid] = {“stocks”: [], “trades”: [], “alerts”: []}
 return data[uid]
 
-# ─── HELPERS ──────────────────────────────────────────────────────────────────
+# — HELPERS ——————————————————————
 
 def grade(score, plan=“a”):
 mx = 78 if plan == “a” else 80
@@ -91,7 +91,7 @@ MAIN_KB = ReplyKeyboardMarkup([
 [“النافذة الحالية”,“تنبيهات”],
 ], resize_keyboard=True)
 
-# ─── ALPHA VANTAGE API ────────────────────────────────────────────────────────
+# — ALPHA VANTAGE API ––––––––––––––––––––––––––––
 
 async def fetch_quote(sym):
 “”“جلب سعر السهم الحالي”””
@@ -202,7 +202,7 @@ fetch_sma(“SPY”, 200),
 )
 return spy_q, vix_q, spy_ma50, spy_ma200
 
-# ─── START ────────────────────────────────────────────────────────────────────
+# — START ––––––––––––––––––––––––––––––––––
 
 async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 name = update.effective_user.first_name or “متداول”
@@ -218,7 +218,7 @@ f”اهلا {name}\n\n”
 “اضغط على اي زر للبدء”,
 reply_markup=MAIN_KB)
 
-# ─── MACRO AUTO ───────────────────────────────────────────────────────────────
+# — MACRO AUTO —————————————————————
 
 async def cmd_macro(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 msg = update.message or update.callback_query.message
@@ -230,7 +230,7 @@ spy_q, vix_q, spy_ma50, spy_ma200 = await get_market_data()
 
 if not spy_q or not spy_ma50:
     await msg.reply_text(
-        "تعذر جلب البيانات الان\nالسوق مغلق او تجاوز الحد اليومي للـ API\n\n"
+        "تعذر جلب البيانات الان\nالسوق مغلق او تجاوز الحد اليومي لل API\n\n"
         f"الوقت ET: {now_et().strftime('%H:%M')}\n"
         f"{entry_window()}",
         reply_markup=MAIN_KB)
@@ -301,7 +301,7 @@ f”نوافذ التداول اليومية\n{SEP}\n”
 f”الان ET: {now_et().strftime(’%H:%M’)}\n”
 f”{entry_window()}”)
 
-# ─── SCANNER AUTO ─────────────────────────────────────────────────────────────
+# — SCANNER AUTO ———————————————————––
 
 async def cmd_scanner(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 data = load_data()
@@ -329,7 +329,7 @@ for s in sorted(stocks, key=lambda x: x.get("score", 0), reverse=True):
     if q:
         price = q["price"]
         pct   = q.get("pct", "0")
-        arrow = "↑" if float(pct) >= 0 else "↓"
+        arrow = "up" if float(pct) >= 0 else "dn"
         g, _  = grade(s.get("score", 0), s.get("plan", "a"))
         if g == "A+": aplus_count += 1
         plan_l = "A" if s.get("plan") == "a" else "B"
@@ -393,7 +393,7 @@ f”تم اضافة {sym} - خطة {‘أ’ if plan==‘a’ else ‘ب’}”,
 reply_markup=MAIN_KB)
 return ConversationHandler.END
 
-# ─── PLAN A QUESTIONS ─────────────────────────────────────────────────────────
+# — PLAN A QUESTIONS ———————————————————
 
 PA_QUESTIONS = [
 (“S&P500 فوق MA50؟ - الزامي”, 0, “m”),
@@ -440,7 +440,7 @@ PB_QUESTIONS = [
 (“Higher Highs وHigher Lows 3 اشهر؟ - الزامي”, 0, “m”),
 (“Perfect Alignment MA20/50/200؟”, 5, “t”),
 (“MA20 اكبر MA50 اكبر MA200؟”, 4, “t”),
-(“RS اقوى من SPY بـ 20%؟”, 4, “t”),
+(“RS اقوى من SPY ب 20%؟”, 4, “t”),
 (“Stage 2؟”, 3, “t”),
 (“حجم التراجع اقل 30%؟”, 4, “p”),
 (“التراجع 5-15% من القمة؟”, 3, “p”),
@@ -472,7 +472,7 @@ CAT = {
 “st”: “خصائص السهم”,
 }
 
-# ─── PLAN A AUTO ──────────────────────────────────────────────────────────────
+# — PLAN A AUTO –––––––––––––––––––––––––––––––
 
 async def start_plan_a(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 msg = update.message or (update.callback_query.message if update.callback_query else None)
@@ -656,7 +656,7 @@ save_data(data)
 await update.callback_query.message.reply_text(f”تم حفظ {sym} - {g}”, reply_markup=MAIN_KB)
 return ConversationHandler.END
 
-# ─── PLAN B ───────────────────────────────────────────────────────────────────
+# — PLAN B —————————————————————––
 
 async def start_plan_b(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 msg = update.message or (update.callback_query.message if update.callback_query else None)
@@ -822,7 +822,7 @@ save_data(data)
 await update.callback_query.message.reply_text(f”تم حفظ {sym} - {g}”, reply_markup=MAIN_KB)
 return ConversationHandler.END
 
-# ─── AUTO TRADE BUILD ─────────────────────────────────────────────────────────
+# — AUTO TRADE BUILD ———————————————————
 
 async def auto_trade_cb(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 await update.callback_query.answer()
@@ -873,7 +873,7 @@ await update.callback_query.message.reply_text(
     reply_markup=MAIN_KB)
 ```
 
-# ─── TRADE BUILDER MANUAL ─────────────────────────────────────────────────────
+# — TRADE BUILDER MANUAL —————————————————–
 
 async def cmd_trade(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 msg = update.message or (update.callback_query.message if update.callback_query else None)
@@ -1005,7 +1005,7 @@ reply_markup=InlineKeyboardMarkup([
 [InlineKeyboardButton(“سجل هذه الصفقة”, callback_data=“journal_from_trade”)],
 ]))
 
-# ─── ALERTS ───────────────────────────────────────────────────────────────────
+# — ALERTS —————————————————————––
 
 async def cmd_alerts(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 data = load_data()
@@ -1070,7 +1070,7 @@ user[“alerts”] = []
 save_data(data)
 await update.callback_query.message.reply_text(“تم حذف كل التنبيهات”, reply_markup=MAIN_KB)
 
-# ─── ALERT CHECKER ────────────────────────────────────────────────────────────
+# — ALERT CHECKER ————————————————————
 
 async def check_alerts(app):
 “”“يفحص التنبيهات كل 5 دقائق”””
@@ -1103,7 +1103,7 @@ if triggered:
     save_data(data)
 ```
 
-# ─── MORNING REPORT ───────────────────────────────────────────────────────────
+# — MORNING REPORT ———————————————————–
 
 async def send_morning_report(app):
 “”“تقرير صباحي يومي الساعة 9:00 AM ET”””
@@ -1136,7 +1136,7 @@ for uid in data.keys():
         pass
 ```
 
-# ─── JOURNAL ──────────────────────────────────────────────────────────────────
+# — JOURNAL ——————————————————————
 
 async def cmd_journal(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 msg = update.message or (update.callback_query.message if update.callback_query else None)
@@ -1247,7 +1247,7 @@ if lesson: lines.append(f”الدرس: {lesson}”)
 await update.message.reply_text(”\n”.join(lines), reply_markup=MAIN_KB)
 return ConversationHandler.END
 
-# ─── PERFORMANCE ──────────────────────────────────────────────────────────────
+# — PERFORMANCE –––––––––––––––––––––––––––––––
 
 async def cmd_perf(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 data = load_data()
@@ -1295,7 +1295,7 @@ lines += [SEP,
 “Profit Factor ممتاز” if pf>=2 else “مقبول” if pf>=1.3 else “راجع Stop Loss”]
 await msg.reply_text(”\n”.join(lines), reply_markup=MAIN_KB)
 
-# ─── RULES ────────────────────────────────────────────────────────────────────
+# — RULES ––––––––––––––––––––––––––––––––––
 
 async def cmd_rules(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 msg = update.message or update.callback_query.message
@@ -1330,7 +1330,7 @@ f”{‘السوق مفتوح’ if market_open() else ‘السوق مغلق’
 f”{entry_window()}”,
 reply_markup=MAIN_KB)
 
-# ─── ROUTERS ──────────────────────────────────────────────────────────────────
+# — ROUTERS ——————————————————————
 
 async def text_router(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 routes = {
@@ -1361,7 +1361,7 @@ elif d == “clear_alerts”:  await clear_alerts_cb(update, ctx)
 elif d.startswith(“auto_trade_”): await auto_trade_cb(update, ctx)
 elif d.startswith(“use_price_”): return await use_price_cb(update, ctx)
 
-# ─── MAIN ─────────────────────────────────────────────────────────────────────
+# — MAIN ———————————————————————
 
 def main():
 if not BOT_TOKEN:
