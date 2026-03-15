@@ -89,7 +89,7 @@ def back_kb():
 async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     name = update.effective_user.first_name or "متداول"
     await update.message.reply_text(
-        f"🎯 *WarRoom Pro — @TurkiAlotaibi\\_bot*\n\nأهلاً *{name}* 👋\n\n"
+        f"🎯 *WarRoom Pro — @TurkiAlotaibi_bot*\n\nأهلاً *{name}* 👋\n\n"
         "أنا مساعدك في التداول اليومي على السوق الأمريكي.\n\n"
         "*ما أستطيع فعله:*\n"
         "🌍 تقييم بيئة السوق\n"
