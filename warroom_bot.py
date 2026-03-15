@@ -14,7 +14,7 @@ Application, CommandHandler, MessageHandler,
 CallbackQueryHandler, ConversationHandler, filters, ContextTypes
 )
 
-BOT_TOKEN = os.environ.get(“BOT_TOKEN”, “”)
+AV_KEY    = os.environ.get("AV_KEY", "")
 AV_KEY    = os.environ.get(“AV_KEY”, “”)
 DATA_FILE = “warroom_data.json”
 
