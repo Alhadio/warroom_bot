@@ -5,8 +5,9 @@
 import os
 import json
 import logging
-import aiohttp
 import asyncio
+import yfinance as yf
+import pandas as pd
 from datetime import datetime, date, timezone, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 from telegram.ext import (
@@ -14,11 +15,10 @@ Application, CommandHandler, MessageHandler,
 CallbackQueryHandler, ConversationHandler, filters, ContextTypes
 )
 
-BOT_TOKEN = os.environ.get(‘BOT_TOKEN’, ‘’)
-AV_KEY    = os.environ.get(‘AV_KEY’, ‘’)
-DATA_FILE = ‘warroom_data.json’
+BOT_TOKEN = os.environ.get(chr(66)+chr(79)+chr(84)+chr(95)+chr(84)+chr(79)+chr(75)+chr(69)+chr(78), str())
+DATA_FILE = chr(119)+chr(97)+chr(114)+chr(114)+chr(111)+chr(111)+chr(109)+chr(95)+chr(100)+chr(97)+chr(116)+chr(97)+chr(46)+chr(106)+chr(115)+chr(111)+chr(110)
 
-logging.basicConfig(format=’%(asctime)s - %(levelname)s - %(message)s’, level=logging.INFO)
+logging.basicConfig(level=logging.INFO)
 
 (
 STOCK_SYM, STOCK_PLAN,
@@ -93,116 +93,88 @@ MAIN_KB = ReplyKeyboardMarkup([
 
 # — ALPHA VANTAGE API ––––––––––––––––––––––––––––
 
-async def fetch_quote(sym):
-‘’‘جلب سعر السهم الحالي’’’
-url = f’https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={sym}&apikey={AV_KEY}’
+def _get_data_sync(sym):
 try:
-async with aiohttp.ClientSession() as s:
-async with s.get(url, timeout=aiohttp.ClientTimeout(total=10)) as r:
-d = await r.json()
-q = d.get(‘Global Quote’, {})
-if not q: return None
+t = yf.Ticker(sym)
+h = t.history(period=chr(54)+chr(109))
+if h.empty: return None
+cl = h[chr(67)+chr(108)+chr(111)+chr(115)+chr(101)]
+hi = h[chr(72)+chr(105)+chr(103)+chr(104)]
+lo = h[chr(76)+chr(111)+chr(119)]
+vo = h[chr(86)+chr(111)+chr(108)+chr(117)+chr(109)+chr(101)]
+p  = float(cl.iloc[-1])
+pv = float(cl.iloc[-2]) if len(cl)>1 else p
+pct= round((p-pv)/pv*100,2) if pv else 0
+ma50  = float(cl.rolling(50).mean().iloc[-1])  if len(cl)>=50  else None
+ma200 = float(cl.rolling(200).mean().iloc[-1]) if len(cl)>=200 else None
+ma20  = float(cl.rolling(20).mean().iloc[-1])  if len(cl)>=20  else None
+dlt   = cl.diff()
+gain  = dlt.clip(lower=0).rolling(14).mean()
+loss  = (-dlt.clip(upper=0)).rolling(14).mean()
+rs    = gain/loss
+rsi   = float((100-(100/(1+rs))).iloc[-1]) if len(cl)>=14 else None
+e12   = cl.ewm(span=12).mean()
+e26   = cl.ewm(span=26).mean()
+ml    = e12-e26
+sl2   = ml.ewm(span=9).mean()
+mv    = float(ml.iloc[-1])
+sv    = float(sl2.iloc[-1])
+tr    = pd.concat([hi-lo,(hi-cl.shift()).abs(),(lo-cl.shift()).abs()],axis=1).max(axis=1)
+atr   = float(tr.rolling(14).mean().iloc[-1]) if len(tr)>=14 else None
+std   = cl.rolling(20).std()
+bm    = cl.rolling(20).mean()
 return {
-‘sym’:    sym,
-‘price’:  float(q.get(‘05. price’, 0)),
-‘change’: float(q.get(‘09. change’, 0)),
-‘pct’:    q.get(‘10. change percent’, ‘0%’).replace(’%’,’’),
-‘vol’:    int(q.get(‘06. volume’, 0)),
-‘high’:   float(q.get(‘03. high’, 0)),
-‘low’:    float(q.get(‘04. low’, 0)),
+chr(115)+chr(121)+chr(109): sym,
+chr(112)+chr(114)+chr(105)+chr(99)+chr(101): p,
+chr(112)+chr(99)+chr(116): str(pct),
+chr(118)+chr(111)+chr(108): int(vo.iloc[-1]),
+chr(109)+chr(97)+chr(53)+chr(48): ma50,
+chr(109)+chr(97)+chr(50)+chr(48)+chr(48): ma200,
+chr(109)+chr(97)+chr(50)+chr(48): ma20,
+chr(114)+chr(115)+chr(105): rsi,
+chr(109)+chr(97)+chr(99)+chr(100): {chr(109)+chr(97)+chr(99)+chr(100):mv,chr(115)+chr(105)+chr(103)+chr(110)+chr(97)+chr(108):sv,chr(104)+chr(105)+chr(115)+chr(116):mv-sv},
+chr(97)+chr(116)+chr(114): atr,
+chr(97)+chr(116)+chr(114)+chr(95)+chr(112)+chr(99)+chr(116): atr/p*100 if atr and p else None,
+chr(98)+chr(98): {chr(117)+chr(112)+chr(112)+chr(101)+chr(114):float((bm+2*std).iloc[-1]),chr(108)+chr(111)+chr(119)+chr(101)+chr(114):float((bm-2*std).iloc[-1])},
 }
-except:
+except Exception as e:
+logging.error(f’yf error {sym}: {e}’)
 return None
 
+async def fetch_quote(sym):
+loop = asyncio.get_event_loop()
+return await loop.run_in_executor(None, _get_data_sync, sym)
+
 async def fetch_sma(sym, period=50):
-‘’‘جلب المتوسط المتحرك’’’
-url = f’https://www.alphavantage.co/query?function=SMA&symbol={sym}&interval=daily&time_period={period}&series_type=close&apikey={AV_KEY}’
-try:
-async with aiohttp.ClientSession() as s:
-async with s.get(url, timeout=aiohttp.ClientTimeout(total=10)) as r:
-d = await r.json()
-ma_data = d.get(‘Technical Analysis: SMA’, {})
-if not ma_data: return None
-latest = list(ma_data.values())[0]
-return float(latest.get(‘SMA’, 0))
-except:
+d = await fetch_quote(sym)
+if not d: return None
+if period==50:  return d.get(chr(109)+chr(97)+chr(53)+chr(48))
+if period==200: return d.get(chr(109)+chr(97)+chr(50)+chr(48)+chr(48))
+if period==20:  return d.get(chr(109)+chr(97)+chr(50)+chr(48))
 return None
 
 async def fetch_rsi(sym):
-‘’‘جلب RSI’’’
-url = f’https://www.alphavantage.co/query?function=RSI&symbol={sym}&interval=daily&time_period=14&series_type=close&apikey={AV_KEY}’
-try:
-async with aiohttp.ClientSession() as s:
-async with s.get(url, timeout=aiohttp.ClientTimeout(total=10)) as r:
-d = await r.json()
-rsi_data = d.get(‘Technical Analysis: RSI’, {})
-if not rsi_data: return None
-latest = list(rsi_data.values())[0]
-return float(latest.get(‘RSI’, 0))
-except:
-return None
+d = await fetch_quote(sym)
+return d.get(chr(114)+chr(115)+chr(105)) if d else None
 
 async def fetch_macd(sym):
-‘’‘جلب MACD’’’
-url = f’https://www.alphavantage.co/query?function=MACD&symbol={sym}&interval=daily&series_type=close&apikey={AV_KEY}’
-try:
-async with aiohttp.ClientSession() as s:
-async with s.get(url, timeout=aiohttp.ClientTimeout(total=10)) as r:
-d = await r.json()
-macd_data = d.get(‘Technical Analysis: MACD’, {})
-if not macd_data: return None
-latest = list(macd_data.values())[0]
-return {
-‘macd’:   float(latest.get(‘MACD’, 0)),
-‘signal’: float(latest.get(‘MACD_Signal’, 0)),
-‘hist’:   float(latest.get(‘MACD_Hist’, 0)),
-}
-except:
-return None
+d = await fetch_quote(sym)
+return d.get(chr(109)+chr(97)+chr(99)+chr(100)) if d else None
 
 async def fetch_atr(sym):
-‘’‘جلب ATR’’’
-url = f’https://www.alphavantage.co/query?function=ATR&symbol={sym}&interval=daily&time_period=14&apikey={AV_KEY}’
-try:
-async with aiohttp.ClientSession() as s:
-async with s.get(url, timeout=aiohttp.ClientTimeout(total=10)) as r:
-d = await r.json()
-atr_data = d.get(‘Technical Analysis: ATR’, {})
-if not atr_data: return None
-latest = list(atr_data.values())[0]
-return float(latest.get(‘ATR’, 0))
-except:
-return None
+d = await fetch_quote(sym)
+return d.get(chr(97)+chr(116)+chr(114)) if d else None
 
 async def fetch_bbands(sym):
-‘’‘جلب Bollinger Bands’’’
-url = f’https://www.alphavantage.co/query?function=BBANDS&symbol={sym}&interval=daily&time_period=20&series_type=close&apikey={AV_KEY}’
-try:
-async with aiohttp.ClientSession() as s:
-async with s.get(url, timeout=aiohttp.ClientTimeout(total=10)) as r:
-d = await r.json()
-bb_data = d.get(‘Technical Analysis: BBANDS’, {})
-if not bb_data: return None
-latest = list(bb_data.values())[0]
-return {
-‘upper’: float(latest.get(‘Real Upper Band’, 0)),
-‘lower’: float(latest.get(‘Real Lower Band’, 0)),
-‘mid’:   float(latest.get(‘Real Middle Band’, 0)),
-}
-except:
-return None
+d = await fetch_quote(sym)
+return d.get(chr(98)+chr(98)) if d else None
 
 async def get_market_data():
-‘’‘جلب بيانات السوق الكاملة’’’
-spy_q, vix_q, spy_ma50, spy_ma200 = await asyncio.gather(
-fetch_quote(‘SPY’),
-fetch_quote(‘VIX’),
-fetch_sma(‘SPY’, 50),
-fetch_sma(‘SPY’, 200),
-)
+spy_q = await fetch_quote(chr(83)+chr(80)+chr(89))
+vix_q = await fetch_quote(chr(94)+chr(86)+chr(73)+chr(88))
+spy_ma50  = spy_q.get(chr(109)+chr(97)+chr(53)+chr(48))  if spy_q else None
+spy_ma200 = spy_q.get(chr(109)+chr(97)+chr(50)+chr(48)+chr(48)) if spy_q else None
 return spy_q, vix_q, spy_ma50, spy_ma200
-
-# — START ––––––––––––––––––––––––––––––––––
 
 async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 name = update.effective_user.first_name or ‘متداول’
@@ -1366,9 +1338,6 @@ elif d.startswith(‘use_price_’): return await use_price_cb(update, ctx)
 def main():
 if not BOT_TOKEN:
 print(‘BOT_TOKEN غير موجود’)
-return
-if not AV_KEY:
-print(‘AV_KEY غير موجود’)
 return
 
 ```
